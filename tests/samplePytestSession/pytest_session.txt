@@ -1,0 +1,10 @@
+============================= test session starts ==============================
+platform darwin -- Python 3.7.6, pytest-5.4.2, py-1.8.1, pluggy-0.13.1 -- /Users/tatianag/dev/miniconda/envs/lsst_scipipe/bin/python
+cachedir: .pytest_cache
+rootdir: /Users/tatianag/lsst/spherex/tests
+plugins: cov-2.9.0, subtests-0.3.1, flake8-1.0.6, forked-1.1.2, session2file-0.1.9, openfiles-0.5.0, xdist-1.32.0, doctestplus-0.6.1
+collecting ... collected 1 item
+
+test_astropyFits.py::AstropyFitsTests::test_putget PASSED                [100%]
+
+======================== 1 passed in 6408.44s (1:46:48) ========================

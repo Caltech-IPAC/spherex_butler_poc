@@ -1,0 +1,13 @@
+datastore:
+  checksum: false
+  cls: lsst.daf.butler.datastores.posixDatastore.PosixDatastore
+  formatters:
+    MyImage: spherex.astropy_image.AstropyImageFormatter
+  records:
+    table: posix_datastore_records
+  root: <butlerRoot>
+registry:
+  db: sqlite:///<butlerRoot>/mytest.sqlite3
+storageClasses:
+  MyImage:
+    pytype: astropy.io.fits.HDUList
