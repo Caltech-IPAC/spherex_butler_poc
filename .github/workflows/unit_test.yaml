@@ -1,0 +1,41 @@
+name: unit_test
+
+on:
+  - push
+  - pull_request
+
+jobs:
+  unit_test:
+    # runs-on: ubuntu-latest
+    # Need >= 20.04 for modern sqlite.
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.7
+
+      - name: Install sqlite
+        run: sudo apt-get install sqlite libyaml-dev
+
+      - name: Install sphgeom dependencies
+        run: pip install -r https://raw.githubusercontent.com/lsst/sphgeom/master/requirements.txt
+
+      - name: Install dax_butler dependencies
+        run: pip install -r https://raw.githubusercontent.com/lsst/daf_butler/master/requirements.txt
+
+      # pytest-xdist allows to parallelizes testing on multiple CPUs
+      # pytest-openfiles allows to detect open I/O resources at the end of unit tests
+      - name: Install pytest-xdist and pytest-openfiles
+        run: pip install pytest-xdist pytest-openfiles
+
+      - name: Build and install
+        run: pip install -v .
+
+      # "-r char" show extra test info for some tests, A - all
+      # "-n numprocesses" use
+      - name: Run tests
+        run: pytest -r A -v -n 2 --open-files
+

@@ -1,3 +1,5 @@
 .pytest_cache
+dist
+spherex_butler_poc.egg-info
 tests/.pytest_cache
 tests/pytest_session.txt
