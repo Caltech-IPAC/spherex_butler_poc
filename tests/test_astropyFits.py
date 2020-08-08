@@ -13,22 +13,33 @@ from astropy.io import fits
 
 TESTDIR = os.path.dirname(__file__)
 
+
+# File-based db stays open at the end of the test,
+# which would prevent running pytest with --open-files option
+# File-based:
+#   db: sqlite:///<butlerRoot>/mytest.sqlite3
+# In-memory:
+#   db: 'sqlite:///:memory:'
 BUTLER_CONFIG = """
 datastore:
   # Want to check disassembly so can't use InMemory
   cls: lsst.daf.butler.datastores.posixDatastore.PosixDatastore
   formatters:
-    MyImage: spherex.astropy_image.AstropyImageFormatter
+    MyImage: spherex.formatters.astropy_image.AstropyImageFormatter
 storageClasses:
   MyImage:
     pytype: astropy.io.fits.HDUList
 registry:
-  db: sqlite:///<butlerRoot>/mytest.sqlite3
+  db: 'sqlite:///:memory:'
 """
 
 DATASET_TYPE_NAME = "myDatasetType"
 
+
 class AstropyFitsTests(DatasetTestHelper, lsst.utils.tests.TestCase):
+
+    root = None
+    storageClassFactory = None
 
     @classmethod
     def setUpClass(cls):
@@ -38,18 +49,18 @@ class AstropyFitsTests(DatasetTestHelper, lsst.utils.tests.TestCase):
 
         cls.root = tempfile.mkdtemp(dir=TESTDIR)
 
-        dataIds = {
+        data_ids = {
             "instrument": ["MyCam"],
             "physical_filter": ["myFilter"],
-            "visit": [11,22],
+            "visit": [11, 22],
         }
 
-        cls.creatorButler = makeTestRepo(cls.root, dataIds, config=Config.fromYaml(BUTLER_CONFIG))
+        cls.creatorButler = makeTestRepo(cls.root, data_ids, config=Config.fromYaml(BUTLER_CONFIG))
         datasetTypeName, storageClassName = (DATASET_TYPE_NAME, "MyImage")
         storageClass = cls.storageClassFactory.getStorageClass(storageClassName)
-        addDatasetType(cls.creatorButler, datasetTypeName, set(dataIds), storageClass)
+        addDatasetType(cls.creatorButler, datasetTypeName, set(data_ids), storageClass)
         # create test dataset type that does not have dimensions
-        #addDatasetType(cls.creatorButler, datasetTypeName, {}, storageClass)
+        # addDatasetType(cls.creatorButler, datasetTypeName, {}, storageClass)
 
     @classmethod
     def tearDownClass(cls):
@@ -62,16 +73,15 @@ class AstropyFitsTests(DatasetTestHelper, lsst.utils.tests.TestCase):
         # collection = "myTestCollection"
         # self.butler = Butler(butler=self.creatorButler, run=collection)
 
-
     def test_putget(self):
         fitsPath = os.path.join(TESTDIR, "data", "small.fits")
         hdulist = fits.open(fitsPath)
-        l1 = hdulist.info(False) # list of tuples representing HDU info
-        dataId = {"visit": 11, "physical_filter": "myFilter", "instrument": "MyCam"}
-        ref = self.butler.put(hdulist, DATASET_TYPE_NAME, dataId)
+        l1 = hdulist.info(False)  # list of tuples representing HDU info
+        dataid = {"visit": 11, "physical_filter": "myFilter", "instrument": "MyCam"}
+        ref = self.butler.put(hdulist, DATASET_TYPE_NAME, dataid)
 
         # Get the full thing
-        retrievedHDUList = self.butler.get(DATASET_TYPE_NAME, dataId)
+        retrievedHDUList = self.butler.get(DATASET_TYPE_NAME, dataid)
         l2 = retrievedHDUList.info(False) # list of tuples representing HDU info
 
         self.assertListEqual(l1, l2)
@@ -116,7 +126,7 @@ if __name__ == '__main__':
 #
 # posix_datastore_records
 # dataset_id|path|formatter|storage_class|component|checksum|file_size
-# 1|test980668348/myDatasetType/myFilter/11/myDatasetType_myFilter_11_MyCam_test980668348.fits|spherex.astropy_image.AstropyImageFormatter|MyImage|__NULL_STRING__||51840
+# 1|test980668348/myDatasetType/myFilter/11/myDatasetType_myFilter_11_MyCam_test980668348.fits|spherex.formatters.astropy_image.AstropyImageFormatter|MyImage|__NULL_STRING__||51840
 #
 # run
 # collection_id|datetime_begin|datetime_end|host

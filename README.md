@@ -7,9 +7,9 @@ for storage, retrieval, and querying of datasets – in SPHEREx pipelines.
 
 - [07/2020 Gen3 Middleware Update & Tutorial](https://docs.google.com/presentation/d/1GHAcuulgeLuJUrzDejczYhj2Fx0kBuFhxEf3T97HT80)
 - [07/2020 Tutorial notebooks](https://github.com/lsst-dm/dm-demo-notebooks/tree/u/jbosch/desc-2020-07/workshops/desc-2020-07/gen3-butler)
-https://pipelines.lsst.io/v/weekly/modules/lsst.daf.butler/organizing.html
-https://pipelines.lsst.io/v/weekly/modules/lsst.daf.butler/queries.html
-https://pipelines.lsst.io/v/weekly/modules/lsst.daf.butler/dimensions.html
+    - https://pipelines.lsst.io/v/weekly/modules/lsst.daf.butler/organizing.html
+    - https://pipelines.lsst.io/v/weekly/modules/lsst.daf.butler/queries.html
+    - https://pipelines.lsst.io/v/weekly/modules/lsst.daf.butler/dimensions.html
 
 ### Testing Gen3 Butler
 
