@@ -1,0 +1,150 @@
+dimensions:
+  version: 0
+  skypix:
+    common: htm7
+    htm7:
+      class: lsst.sphgeom.HtmPixelization
+      level: 7
+    htm9:
+      class: lsst.sphgeom.HtmPixelization
+      level: 9
+
+  elements:
+    instrument:
+      doc: >
+        An entity that produces observations.  An instrument defines a set of
+        detectors and a numbering system for the exposures.
+      keys:
+        -
+          name: name
+          type: string
+          length: 16
+      metadata:
+        -
+          name: exposure_max
+          type: int
+          doc: >
+            Maximum value for the 'exposure' field for exposures associated with
+            this instrument (exclusive).
+        -
+          name: detector_max
+          type: int
+          doc: >
+            Maximum value for the 'detector' field for detectors associated with
+            this instrument (exclusive).
+        -
+          name: class_name
+          type: string
+          length: 64
+          doc: >
+            Full class name of the Instrument class associated with this
+            instrument.
+      cached: true
+
+    detector:
+      doc: >
+        A detector associated with a particular instrument (not an observation
+        of that detector; that requires specifying an exposure as well).
+      keys:
+        -
+          name: id
+          type: int
+        -
+          name: full_name
+          type: string
+          length: 32
+      requires: [instrument]
+      metadata:
+        -
+          name: lmin
+          type: float
+          doc: >
+            Minimum wavelength.
+        -
+          name: lmax
+          type: float
+          doc: >
+            Maximum wavelength.
+        -
+          name: r
+          type: float
+          doc: >
+            Resolution.
+        -
+          name: desc
+          type: string
+          length: 32
+          doc: >
+            Description of the detector.
+      cached: true
+
+    exposure:
+      doc: >
+        An observation associated with a particular instrument.
+        All direct observations are identified with an exposure.
+      keys:
+        -
+          name: id
+          type: int
+        -
+          name: name
+          type: string
+          length: 64
+      requires: [instrument]
+      temporal: exposure
+      metadata:
+        -
+          name: exposure_time
+          type: float
+          doc: Duration of the exposure with shutter open (seconds).
+        -
+          name: group_name
+          type: string
+          length: 64
+          doc: >
+            String group identifier associated with this exposure by the
+            acquisition system.
+        -
+          name: group_id
+          type: int
+          doc: >
+            Integer group identifier associated with this exposure by the
+            acquisition system.
+        -
+          name: ra_boresight
+          type: float
+          doc: >
+            ICRS Right Ascension of boresight in degrees.
+        -
+          name: dec_boresight
+          type: float
+          doc: >
+            ICRS Declination of boresight in degrees.
+        -
+          name: roll
+          type: float
+          doc: >
+            Angle of the instrument focal plane on the sky in degrees.
+        -
+          name: gaussian_jitter
+          type: float
+          doc: >
+            Mean sigma in arcseconds.
+
+    calibration_label:
+      doc: >
+        A string label that maps to a date validity range for master
+        calibration products.
+      keys:
+        -
+          name: name
+          type: string
+          length: 128
+      requires: [instrument]
+      temporal: calibration_label
+
+  packers:
+    exposure_detector:
+      fixed: [instrument]
+      dimensions: [instrument, exposure, detector]
+      cls: lsst.daf.butler.instrument.ObservationDimensionPacker

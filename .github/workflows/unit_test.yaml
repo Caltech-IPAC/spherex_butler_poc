@@ -1,8 +1,14 @@
 name: unit_test
 
-on:
-  - push
-  - pull_request
+on: [push]
+# merging pull request results in a push, hence pull_request events might be ignored
+#on:
+#  push:
+#    branches:
+#      - master
+#  pull_request:
+#    branches:
+#      - master
 
 jobs:
   unit_test:
@@ -10,7 +16,16 @@ jobs:
     # Need >= 20.04 for modern sqlite.
     runs-on: ubuntu-20.04
     steps:
-      - uses: actions/checkout@v2
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          path: spherex_butler_poc
+
+      - name: Checkout daf_butler
+        uses: actions/checkout@v2
+        with:
+          repository: lsst/daf_butler
+          path: daf_butler
 
       - name: Set up Python
         uses: actions/setup-python@v2
@@ -26,16 +41,25 @@ jobs:
       - name: Install dax_butler dependencies
         run: pip install -r https://raw.githubusercontent.com/lsst/daf_butler/master/requirements.txt
 
-      # pytest-xdist allows to parallelizes testing on multiple CPUs
+      # pytest-xdist allows to parallelize testing on multiple CPUs
       # pytest-openfiles allows to detect open I/O resources at the end of unit tests
       - name: Install pytest-xdist and pytest-openfiles
         run: pip install pytest-xdist pytest-openfiles
 
+      # it's not possible to overwrite the default dimensions.yaml of the butler right now
+      # the workaround is to replace the default dimensions.yaml with ours
       - name: Build and install
-        run: pip install -v .
+        run: |
+          cp spherex_butler_poc/python/spherex/configs/dimensions.yaml daf_butler/python/lsst/daf/butler/configs/
+          cd ${{ github.workspace }}/daf_butler
+          pip install -v .
+          cd ${{ github.workspace }}/spherex_butler_poc
+          pip install -v .
 
       # "-r char" show extra test info for some tests, A - all
-      # "-n numprocesses" use
+      # "-n auto" to use as many processes as your computer has CPU cores
       - name: Run tests
-        run: pytest -r A -v -n 2 --open-files
+        run: |
+          cd ${{ github.workspace }}/spherex_butler_poc
+          pytest -r A -v -n auto --open-files
 
