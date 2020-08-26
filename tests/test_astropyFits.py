@@ -13,7 +13,6 @@ from astropy.io import fits
 
 TESTDIR = os.path.dirname(__file__)
 
-
 # File-based db stays open at the end of the test,
 # which would prevent running pytest with --open-files option
 # File-based:
@@ -26,18 +25,22 @@ datastore:
   cls: lsst.daf.butler.datastores.posixDatastore.PosixDatastore
   formatters:
     MyImage: spherex.formatters.astropy_image.AstropyImageFormatter
+  templates:
+    default: "{run:/}/{datasetType}.{component:?}/{label:?}/{detector:?}/{exposure:?}/{datasetType}_{component:?}_{label:?}_{calibration_label:?}_{exposure:?}_{detector:?}_{instrument:?}_{skypix:?}_{run}"
+
 storageClasses:
   MyImage:
     pytype: astropy.io.fits.HDUList
+
 registry:
   db: 'sqlite:///:memory:'
+
 """
 
 DATASET_TYPE_NAME = "myDatasetType"
 
 
 class AstropyFitsTests(DatasetTestHelper, lsst.utils.tests.TestCase):
-
     root = None
     storageClassFactory = None
 
@@ -51,8 +54,8 @@ class AstropyFitsTests(DatasetTestHelper, lsst.utils.tests.TestCase):
 
         data_ids = {
             "instrument": ["MyCam"],
-            "physical_filter": ["myFilter"],
-            "visit": [11, 22],
+            "detector": [0, 1, 2, 3, 4, 5],
+            "exposure": [11, 22],
         }
 
         cls.creatorButler = makeTestRepo(cls.root, data_ids, config=Config.fromYaml(BUTLER_CONFIG))
@@ -77,12 +80,12 @@ class AstropyFitsTests(DatasetTestHelper, lsst.utils.tests.TestCase):
         fitsPath = os.path.join(TESTDIR, "data", "small.fits")
         hdulist = fits.open(fitsPath)
         l1 = hdulist.info(False)  # list of tuples representing HDU info
-        dataid = {"visit": 11, "physical_filter": "myFilter", "instrument": "MyCam"}
+        dataid = {"exposure": 11, "detector": 0, "instrument": "MyCam"}
         ref = self.butler.put(hdulist, DATASET_TYPE_NAME, dataid)
 
         # Get the full thing
         retrievedHDUList = self.butler.get(DATASET_TYPE_NAME, dataid)
-        l2 = retrievedHDUList.info(False) # list of tuples representing HDU info
+        l2 = retrievedHDUList.info(False)  # list of tuples representing HDU info
 
         self.assertListEqual(l1, l2)
 
@@ -94,15 +97,15 @@ if __name__ == '__main__':
 #
 # collection
 # collection_id|name|type
-# 1|test980668348|1
+# 1|test228001913|1
 #
-# dataset;
+# dataset
 # id|dataset_type_id|run_id
 # 1|1|1
 #
-# dataset_collection_248c;
-# dataset_type_id|dataset_id|collection_id|instrument|visit
-# 1|1|1|MyCam|11
+# dataset_collection_34
+# dataset_type_id|dataset_id|collection_id|instrument|detector|exposure
+# 1|1|1|MyCam|0|11
 #
 # dataset_location
 # datastore_name|dataset_id
@@ -110,7 +113,16 @@ if __name__ == '__main__':
 #
 # dataset_type
 # id|name|storage_class|dimensions_encoded
-# 1|myDatasetType|MyImage|JIw=
+# 1|myDatasetType|MyImage|NA==
+#
+# detector
+# instrument|id|full_name|lmin|lmax|r|desc
+# MyCam|0|0||||
+# MyCam|1|1||||
+# MyCam|2|2||||
+# MyCam|3|3||||
+# MyCam|4|4||||
+# MyCam|5|5||||
 #
 # instrument
 # name|visit_max|exposure_max|detector_max|class_name
@@ -120,19 +132,10 @@ if __name__ == '__main__':
 # table_name
 # posix_datastore_records
 #
-# physical_filter
-# instrument|name|abstract_filter
-# MyCam|myFilter|
-#
 # posix_datastore_records
 # dataset_id|path|formatter|storage_class|component|checksum|file_size
-# 1|test980668348/myDatasetType/myFilter/11/myDatasetType_myFilter_11_MyCam_test980668348.fits|spherex.formatters.astropy_image.AstropyImageFormatter|MyImage|__NULL_STRING__||51840
+# 1|test228001913/myDatasetType/0/11/myDatasetType_11_0_MyCam_test228001913.fits|spherex.formatters.astropy_image.AstropyImageFormatter|MyImage|__NULL_STRING__||51840
 #
 # run
 # collection_id|datetime_begin|datetime_end|host
 # 1|||
-#
-# visit
-# instrument|id|physical_filter|visit_system|name|exposure_time|seeing|region|datetime_begin|datetime_end
-# MyCam|11|myFilter||11|||||
-# MyCam|22|myFilter||22|||||

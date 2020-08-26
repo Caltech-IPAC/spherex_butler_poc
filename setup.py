@@ -19,5 +19,6 @@ setup (
     package_dir={"": "python"},
     python_requires=">3.6",
     setup_requires=["setuptools >=49.2", ],
-    install_requires=["astropy >=4.0", "daf-butler @ https://github.com/lsst/daf_butler/archive/master.tar.gz"],
+    install_requires=["astropy >=4.0", ],
+    # install_requires=["astropy >=4.0", "daf-butler @ https://github.com/lsst/daf_butler/archive/master.tar.gz"],
 )
