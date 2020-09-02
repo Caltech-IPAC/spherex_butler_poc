@@ -7,7 +7,7 @@ datastore:
     table: posix_datastore_records
   root: <butlerRoot>
   templates:
-    default: '{run:/}/{datasetType}.{component:?}/{label:?}/{detector:?}/{exposure:?}/{datasetType}_{component:?}_{label:?}_{calibration_label:?}_{exposure:?}_{detector:?}_{instrument:?}_{skypix:?}_{run}'
+    default: '{run:/}/{datasetType}.{component:?}/{label:?}/{detector:?}/{exposure.group_name:?}/{datasetType}_{component:?}_{label:?}_{calibration_label:?}_{exposure:?}_{detector:?}_{instrument:?}_{skypix:?}_{run}'
 registry:
   db: sqlite:///<butlerRoot>/mytest.sqlite3
 storageClasses:
