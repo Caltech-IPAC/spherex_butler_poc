@@ -1,0 +1,6 @@
+setupRequired(daf_butler)
+
+envPrepend(PYTHONPATH, ${PRODUCT_DIR}/python)
+envPrepend(PATH, ${PRODUCT_DIR}/bin)
+envPrepend(DAF_BUTLER_PLUGINS, ${PRODUCT_DIR}/python/spherex/cli/resources.yaml)
+envPrepend(DAF_BUTLER_CONFIG_PATHS, ${PRODUCT_DIR}/python/spherex/config)

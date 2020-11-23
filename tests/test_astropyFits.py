@@ -7,7 +7,7 @@ import unittest
 from astropy.io import fits
 
 import lsst.utils.tests
-from lsst.daf.butler import Butler, Config, DatasetRef, FileDataset, StorageClassFactory, Timespan
+from lsst.daf.butler import Butler, ButlerURI, Config, DatasetRef, FileDataset, StorageClassFactory, Timespan
 from lsst.daf.butler.tests import DatasetTestHelper, makeTestRepo, addDatasetType
 
 from spherex.formatters.astropy_image import AstropyImageFormatter
@@ -16,27 +16,7 @@ TESTDIR = os.path.dirname(__file__)
 
 # File-based db stays open at the end of the test,
 # which would prevent running pytest with --open-files option
-# File-based:
-#   db: sqlite:///<butlerRoot>/mytest.sqlite3
-# In-memory:
-#   db: 'sqlite:///:memory:'
-BUTLER_CONFIG = """
-datastore:
-  # Want to check disassembly so can't use InMemory
-  cls: lsst.daf.butler.datastores.posixDatastore.PosixDatastore
-  formatters:
-    MyImage: spherex.formatters.astropy_image.AstropyImageFormatter
-  templates:
-    default: "{run:/}/{datasetType}.{component:?}/{label:?}/{detector:?}/{exposure.group_name:?}/{datasetType}_{component:?}_{label:?}_{calibration_label:?}_{exposure:?}_{detector:?}_{instrument:?}_{skypix:?}_{run}"
 
-storageClasses:
-  MyImage:
-    pytype: astropy.io.fits.HDUList
-
-registry:
-  db: 'sqlite:///:memory:'
-
-"""
 INSTRUMENT_NAME = "MyCam"
 DATASET_TYPE_NAME = "myDatasetType"
 
@@ -61,7 +41,12 @@ class AstropyFitsTests(DatasetTestHelper, lsst.utils.tests.TestCase):
             "exposure": [11, 22],
         }
 
-        cls.creatorButler = makeTestRepo(cls.root, data_ids, config=Config.fromYaml(BUTLER_CONFIG))
+        configURI = ButlerURI("resource://spherex/configs", forceDirectory=True)
+        butlerConfig = Config(configURI.join("butler.yaml"))
+        # in-memory db is being phased out
+        # butlerConfig["registry", "db"] = 'sqlite:///:memory:'
+        cls.creatorButler = makeTestRepo(cls.root, data_ids, config=butlerConfig,
+                                         dimensionConfig=configURI.join("dimensions.yaml"))
         datasetTypeName, storageClassName = (DATASET_TYPE_NAME, "MyImage")
         storageClass = cls.storageClassFactory.getStorageClass(storageClassName)
         addDatasetType(cls.creatorButler, datasetTypeName, set(data_ids), storageClass)
@@ -84,7 +69,7 @@ class AstropyFitsTests(DatasetTestHelper, lsst.utils.tests.TestCase):
         hdulist = fits.open(fitsPath)
         l1 = hdulist.info(False)  # list of tuples representing HDU info
         dataid = {"exposure": 11, "detector": 0, "instrument": INSTRUMENT_NAME}
-        ref = self.butler.put(hdulist, DATASET_TYPE_NAME, dataid)
+        self.butler.put(hdulist, DATASET_TYPE_NAME, dataid)
 
         # Get the full thing
         retrievedHDUList = self.butler.get(DATASET_TYPE_NAME, dataid)
@@ -119,12 +104,14 @@ class AstropyFitsTests(DatasetTestHelper, lsst.utils.tests.TestCase):
         with self.butler.transaction():
             for exposure in range(3, 5):
                 expid = exposure*11
-                self.butler.registry.insertDimensionData("exposure", {"instrument": INSTRUMENT_NAME,
-                                                                      "id": expid,
-                                                                      "name": f"{expid}",
-                                                                      "group_name": "day1",
-                                                                      "timespan": Timespan(begin=None, end=None)})
-            # transfer can be 'auto', 'move', 'copy', 'hardlink', 'relsymlink' or 'symlink'
+                self.butler.registry.insertDimensionData("exposure",
+                                                         {"instrument": INSTRUMENT_NAME,
+                                                          "id": expid,
+                                                          "name": f"{expid}",
+                                                          "group_name": "day1",
+                                                          "timespan": Timespan(begin=None, end=None)})
+            # transfer can be 'auto', 'move', 'copy', 'hardlink', 'relsymlink'
+            # or 'symlink'
             self.butler.ingest(*datasets, transfer="symlink", run=run)
 
         # verify that 12 files were ingested (2 exposures for each detector)
@@ -133,12 +120,13 @@ class AstropyFitsTests(DatasetTestHelper, lsst.utils.tests.TestCase):
 
         # verify that data id is present
         dataid = {"exposure": 44, "detector": 5, "instrument": INSTRUMENT_NAME}
-        refsList = list(self.butler.registry.queryDatasets(DATASET_TYPE_NAME, collections=[run],
-                                                           dataId=dataid, deduplicate=True))
+        refsList = list(self.butler.registry.queryDatasets(DATASET_TYPE_NAME,
+                                                           collections=[run],
+                                                           dataId=dataid))
         self.assertEqual(len(refsList), 1, f"Collection {run} should have 1 element with {dataid}")
 
         # get the python representation of data id
-        # retrievedHDUList = self.butler.get(DATASET_TYPE_NAME, dataid, collections=[run])
+        # self.butler.get(DATASET_TYPE_NAME, dataid, collections=[run])
 
 
 if __name__ == '__main__':
