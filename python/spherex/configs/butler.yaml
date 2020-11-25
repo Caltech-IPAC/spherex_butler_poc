@@ -1,0 +1,21 @@
+datastore:
+  # Want to check disassembly so can't use InMemory
+  cls: lsst.daf.butler.datastores.fileDatastore.FileDatastore
+  formatters:
+    MyImage: spherex.formatters.astropy_image.AstropyImageFormatter
+    SPHERExImage: spherex.formatters.astropy_image.AstropyImageFormatter
+  templates:
+    default: "{run:/}/{datasetType}.{component:?}/{label:?}/{detector:?}/{exposure.group_name:?}/{datasetType}_{component:?}_{label:?}_{calibration_label:?}_{exposure:?}_{detector:?}_{instrument:?}_{skypix:?}_{run}"
+
+storageClasses:
+  MyImage:
+    pytype: astropy.io.fits.HDUList
+  SPHERExImage:
+    pytype: astropy.io.fits.HDUList
+
+registry:
+  # File-based:
+  #   db: 'sqlite:///<butlerRoot>/mytest.sqlite3'
+  # In-memory (in process of being phased out):
+  #   db: 'sqlite:///:memory:'
+  db: 'sqlite:///<butlerRoot>/spherex.sqlite3'

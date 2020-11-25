@@ -1,0 +1,7 @@
+# The butler command finds plugin commands by way of a resource manifest
+# https://pipelines.lsst.io/v/weekly/modules/lsst.daf.butler/writing-subcommands.html#adding-butler-subcommands
+# the location of this file must be references by DAF_BUTLER_PLUGINS environment variable
+cmd:
+  import: spherex.cli.cmd
+  commands:
+    - ingest-simulated

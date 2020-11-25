@@ -35,22 +35,16 @@ jobs:
       - name: Install sqlite
         run: sudo apt-get install sqlite libyaml-dev
 
-      - name: Install sphgeom dependencies
-        run: pip install -r https://raw.githubusercontent.com/lsst/sphgeom/master/requirements.txt
-
       - name: Install dax_butler dependencies
         run: pip install -r https://raw.githubusercontent.com/lsst/daf_butler/master/requirements.txt
 
       # pytest-xdist allows to parallelize testing on multiple CPUs
       # pytest-openfiles allows to detect open I/O resources at the end of unit tests
-      - name: Install pytest-xdist and pytest-openfiles
-        run: pip install pytest-xdist pytest-openfiles
+      - name: Install pytest packages
+        run: pip install pytest pytest-flake8 pytest-xdist pytest-openfiles
 
-      # it's not possible to overwrite the default dimensions.yaml of the butler right now
-      # the workaround is to replace the default dimensions.yaml with ours
       - name: Build and install
         run: |
-          cp spherex_butler_poc/python/spherex/configs/dimensions.yaml daf_butler/python/lsst/daf/butler/configs/
           cd ${{ github.workspace }}/daf_butler
           pip install -v .
           cd ${{ github.workspace }}/spherex_butler_poc
