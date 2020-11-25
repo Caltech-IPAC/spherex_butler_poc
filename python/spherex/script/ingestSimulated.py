@@ -1,5 +1,6 @@
 import re
 import datetime
+import logging
 
 from lsst.daf.butler.core.utils import findFileResources
 
@@ -57,7 +58,8 @@ def ingestSimulated(repo, locations, regex, output_run, transfer="auto", ingest_
         instrument_record = {
             "name": "simulator",
             "exposure_max": 600000,
-            "detector_max": 6
+            "detector_max": 6,
+            "class_name": "spherex.instrument.SimulatorInstrument"
         }
         butler.registry.syncDimensionData("instrument", instrument_record)
         for idx in range(1, 7):
@@ -96,11 +98,13 @@ def ingestSimulated(repo, locations, regex, output_run, transfer="auto", ingest_
         m = pattern.search(file)
         if m is None:
             n_failed += 1
+            logging.error(f"{file} does not match sumulator file pattern")
             continue
         else:
             g = m.groups()
             if len(g) != 2:
                 n_failed += 1
+                logging.error(f"Unable to get exposure and detector from file name: {file}")
                 continue
             else:
                 [exposure_id, detector_id] = list(map(int, g))
@@ -113,8 +117,9 @@ def ingestSimulated(repo, locations, regex, output_run, transfer="auto", ingest_
                                "timespan": Timespan(begin=None, end=None)}
             # idempotent insertion of individual dimension rows
             butler.registry.syncDimensionData("exposure", exposure_record)
-        except Exception as e:  # noqa: F841
+        except Exception as e:
             n_failed += 1
+            logging.error(f"Unable to insert exposure record for file {file}: {e}")
             continue
 
         dataId = DataCoordinate.standardize(instrument="simulator",

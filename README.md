@@ -57,6 +57,8 @@ _DatasetType_, and any of the field in _Dimensions_ tables to create directory s
 of _Dataset_ stored representation.  
 Verified that the data can be ingested into datastore according to the defined template and 
 the transfer type (ex. copy, symlink).
+- Custom butler command (`ingest-simulated`) using butler command framework.
+- Simple task and example pipeline
 
 Proof-of-concept is designed around Python unit tests that run in a container
 on GitHub-hosted machines as a part of GitHub's built-in continuous integration service,
@@ -65,9 +67,8 @@ see `.github/workflows/unit_test.yaml`
 #### Caveats
 
 Butler allows to override parts of its configuration. The overwritten configuration is merged 
-with the default configuration. However, as of August 2020, there is no option in Butler to override the default dimensions.yaml
-For the proof-of-concept purposes, we just replace `daf_butler/python/lsst/daf/butler/configs/dimensions.yaml`
-with `sperex_butler_poc/python/spherex/configs/dimensions.yaml`
+with the default configuration. As of November 2020, it's possible to completely overrode dimensions, 
+but not possible to completely replace formatters and storage classes.
 
 Other known issues:
 - Butler relies on `lsst.sphgeom` lower level C++ library, which does not support HEALPix pixelization at the moment
@@ -95,7 +96,6 @@ Other known issues:
 
 - setup for running butler tests:
 ```
-> pip install -r https://raw.githubusercontent.com/lsst/sphgeom/master/requirements.txt
 > pip install pytest-xdist pytest-openfiles
 > cd daf_butler
 > pip install -r requirements.txt
@@ -130,5 +130,5 @@ $ setup -j -r testdata_ci_hsc
 $ setup -j -r ci_hsc_gen3
 $ echo $TESTDATA_CI_HSC_DIR; echo $CI_HSC_GEN3_DIR
 $ cd ci_hsc_gen3/$ scons
-$ sqlite3_analyzer /home/lsst/mnt/ci_hsc_gen3/DATA/gen3.sqlite3  
+$ sqlite3_analyzer /home/lsst/mnt/ci_hsc_gen3/DATA/gen3.sqlite3 
 ```
