@@ -55,5 +55,6 @@ jobs:
       - name: Run tests
         run: |
           cd ${{ github.workspace }}/spherex_butler_poc
-          pytest -r A -v -n auto --open-files
+
+          pytest --ignore python/spherex/tasks/ -r A -v -n auto --open-files
 

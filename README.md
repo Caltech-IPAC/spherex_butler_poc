@@ -57,12 +57,21 @@ _DatasetType_, and any of the field in _Dimensions_ tables to create directory s
 of _Dataset_ stored representation.  
 Verified that the data can be ingested into datastore according to the defined template and 
 the transfer type (ex. copy, symlink).
-- Custom butler command (`ingest-simulated`) using butler command framework.
-- Simple task and example pipeline
+- Custom butler command   
+It is possible to use butler framework to create butler [subcommands](https://pipelines.lsst.io/v/weekly/modules/lsst.daf.butler/writing-subcommands.html#adding-butler-subcommands). 
+Verified this capability by adding `ingest-simulated` subcommand.
+- Simple task and example pipeline  
+Created SubtractTask pipeline task, which accepts two images and subtracts the second from the first.
+Created an example pipeline that runs this task, see `pipelines/ExamplePipeline.yaml`.
 
 Proof-of-concept is designed around Python unit tests that run in a container
 on GitHub-hosted machines as a part of GitHub's built-in continuous integration service,
-see `.github/workflows/unit_test.yaml`
+see `.github/workflows/unit_test.yaml`  
+Unfortunately, pipeline tasks can not be validated with GitHub actions, because they rely on
+[pipe_base](https://github.com/lsst/pipe_base) and [ctrl_mpexec](https://github.com/lsst/ctrl_mpexec) packages with deeper rooted dependencies. Running example pipeline requires installing 
+Rubin/LSST environment, where packages are managed with [EUPS](https://developer.lsst.io/stack/eups-tutorial.html).
+
+Dependency management is one of the main concerns when using Rubin/LSST pipeline framework.
 
 #### Caveats
 
@@ -70,45 +79,105 @@ Butler allows to override parts of its configuration. The overwritten configurat
 with the default configuration. As of November 2020, it's possible to completely overrode dimensions, 
 but not possible to completely replace formatters and storage classes.
 
+There is an implied requirement in `ctrl_mpexec` package that `instrument` dimension table must have 
+a reference to instrument class. 
+
 Other known issues:
 - Butler relies on `lsst.sphgeom` lower level C++ library, which does not support HEALPix pixelization at the moment
 
 
+### Testing Gen3 Butler and Pipeline Task framework
 
-### Testing Gen3 Butler
+#### Testing locally
 
-#### Running daf_butler tests
+##### Install latest weekly
 
-- lsst_scipipe conda environment:
+To install the latest pipeline distribution `lsst_distrib` built by Rubin/LSST project, follow [newinstall](https://pipelines.lsst.io/install/newinstall.html#run-newinstall-sh) recipe:
+
 ```
-> git clone https://github.com/lsst/scipipe_conda_env.git
-> cd scipipe_conda_env/etc
-> conda create --name lsst_scipipe --file conda-osx-64.lock
-> conda activate lsst_scipipe
-> conda install ipykernel (to be able to use lsst_scipipe in jupyter lab running in another environment)
+# from an empty directory - 
+curl -OL https://raw.githubusercontent.com/lsst/lsst/master/scripts/newinstall.sh
+# continue a previous failed install, if any, in batch mode, and prefer tarballs
+bash newinstall.sh -cbt 
+source loadLSST.bash
+# install weekly 46 for 2020
+eups distrib install -t w_2020_46 lsst_distrib  
+# fix shebangs - tarballs have shebangs encoded at build time that need to be fixed at install time
+curl -sSL https://raw.githubusercontent.com/lsst/shebangtron/master/shebangtron | python
+# use with tag option if other versions installed: setup -t w_2020_46 lsst_distrib
+setup lsst_distrib
+```
+[What newinstall does](https://pipelines.lsst.io/install/newinstall.html#newinstall-background)
+
+You only need to do newinstall when conda base environment changes.
+Check the last modified date of [conda-system](https://eups.lsst.codes/stack/osx/10.9/conda-system/).
+
+If newest weekly is installed without running newinstall.sh, the previous versions can be removed
+with [this script](https://github.com/lsst/lsstsw/blob/u/jbosch/bin/pruneTags). The script will remove 
+all packages except locally set up and those with the given tag. Use `--dry-run`
+option to avoid surprises:
+```
+pruneTags w_2020_44 --delete-untagged --dry-run
 ```
 
-- source code repos:
-```
-> git clone https://github.com/lsst/daf_butler
-> git clone https://github.com/lsst/obs_base
-```
+##### Running example pipeline
 
-- setup for running butler tests:
-```
-> pip install pytest-xdist pytest-openfiles
-> cd daf_butler
-> pip install -r requirements.txt
-> pip install -v .
-```
-(the info about pip packages installed in `lsst_scipipe` conda environment can be found in `<CONDA_ROOT_DIR>/envs/lsst_scipipe/lib/python3.7/site-packages`)
+To run the example pipeline defined in these repository follow these steps:
 
-- run butler tests:
-```
-> pytest -r a -v -n 3 --open-files
-```
+- Install the latest `lsst_distrib` (see above)
 
-#### Testing in a container (using weekly image):
+- Set up spherex_butler_poc repository with EUPS package manager:
+```
+git checkout https://github.com/Caltech-IPAC/spherex_butler_poc.git
+cd spherex_butler_poc
+# set up the package in the eups stack
+setup -r . -t $USER
+# review set up packages (optional)
+eups list -s
+```
+- Create a directory where the buttler repository will live:
+```
+mkdir ../test_spherex
+cd ../test_spherex
+```
+- Run SPHEREx simulator to produce simulated files. 
+The simulated files have exposure and detector id embedded in the file names.
+
+- Create empty butler repository (DATA):
+```
+butler create --override --seed-config ../spherex_butler_poc/python/spherex/configs/butler.yaml --dimension-config ../spherex_butler_poc/python/spherex/configs/dimensions.yaml DATA
+```
+- Ingest simulated images:
+```
+butler ingest-simulated DATA /<abspath>/simulator_files
+```
+- Ingest simulated dark current images (the group is set to the ingest date, hence ingesting raw and dark images should be done on the same date):
+```
+butler ingest-simulated --regex dark_current.fits --ingest-type dark DATA /<abspath>/simulator_files
+```
+- Examine butler database
+```
+sqlite3 DATA/spherex.sqlite3
+> .header on
+> .tables
+> select * from file_datastore_records;
+> .exit
+```
+- Create pipeline execution plan as a qgraph.dot file
+```
+pipetask qgraph -p ../spherex_butler_poc/pipelines/ExamplePipeline.yaml --qgraph-dot qgraph.dot -b DATA -i rawexpr,darkr -o subtractr
+```
+- Convert `qgraph.dot` into `pdf` (`graphvis` required):
+```
+dot -Tpdf qgraph.dot -o qgraph.pdf
+```
+- Run example pipeline:
+```
+pipetask run -p ../spherex_butler_poc/pipelines/ExamplePipeline.yaml -b DATA --register-dataset-types -i rawexpr,darkr -o subtractr
+```
+- Examine butler repository in `DATA` directory
+
+### Testing in a container (using weekly image):
 
 - make sure you have test data (Git LFS repo) and test scripts:
 ```
