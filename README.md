@@ -1,7 +1,14 @@
 # spherex_butler_poc
 
-Proof-of-concept code for using [dax_butler](https://github.com/lsst/daf_butler) – Rubin/LSST Gen3 Butler framework 
-for storage, retrieval, and querying of datasets – in SPHEREx pipelines.
+Proof-of-concept code for using [dax_butler](https://github.com/lsst/daf_butler) – Rubin/LSST Gen3 Butler and 
+PipelineTask framework in SPHEREx pipelines.
+
+_Butler_ organizes _datasets_ (units of stored data) in data repositories, identifying them by a combination of 
+_dataset type_, _data id_, and _collection_. It encapsulates all I/O done by pipeline code. 
+
+_PipelineTask_ is a framework for writing and packaging algorithmic code that enables generating a pipeline execution 
+plan, in the form of a directed acyclic graph (DAG). PipelineTask is built on top of Butler.
+
 
 #### Why using Butler?
 
@@ -37,8 +44,8 @@ make a unique _Dataset_ identifier, see [DatasetRef](https://pipelines.lsst.io/v
 
 #### Resources
 
-- [07/2020 Gen3 Middleware Update & Tutorial](https://docs.google.com/presentation/d/1GHAcuulgeLuJUrzDejczYhj2Fx0kBuFhxEf3T97HT80)
-- [07/2020 Tutorial notebooks](https://github.com/lsst-dm/dm-demo-notebooks/tree/u/jbosch/desc-2020-07/workshops/desc-2020-07/gen3-butler)
+- [10/2020 Gen3 Middleware Tutorial](https://github.com/lsst-dm/obs-bootcamp-2020-bosch-tutorial/)
+- [07/2020 Gen3 Middleware Tutorial](https://github.com/lsst-dm/dm-demo-notebooks/tree/u/jbosch/desc-2020-07/workshops/desc-2020-07/gen3-butler)
     - https://pipelines.lsst.io/v/weekly/modules/lsst.daf.butler/organizing.html
     - https://pipelines.lsst.io/v/weekly/modules/lsst.daf.butler/queries.html
     - https://pipelines.lsst.io/v/weekly/modules/lsst.daf.butler/dimensions.html
@@ -68,8 +75,9 @@ Proof-of-concept is designed around Python unit tests that run in a container
 on GitHub-hosted machines as a part of GitHub's built-in continuous integration service,
 see `.github/workflows/unit_test.yaml`  
 Unfortunately, pipeline tasks can not be validated with GitHub actions, because they rely on
-[pipe_base](https://github.com/lsst/pipe_base) and [ctrl_mpexec](https://github.com/lsst/ctrl_mpexec) packages with deeper rooted dependencies. Running example pipeline requires installing 
-Rubin/LSST environment, where packages are managed with [EUPS](https://developer.lsst.io/stack/eups-tutorial.html).
+[pipe_base](https://github.com/lsst/pipe_base) and [ctrl_mpexec](https://github.com/lsst/ctrl_mpexec) packages with 
+deeper rooted dependencies. Running example pipeline requires installing Rubin/LSST environment, where packages 
+are managed with [EUPS](https://developer.lsst.io/stack/eups-tutorial.html).
 
 Dependency management is one of the main concerns when using Rubin/LSST pipeline framework.
 
@@ -175,7 +183,18 @@ dot -Tpdf qgraph.dot -o qgraph.pdf
 ```
 pipetask run -p ../spherex_butler_poc/pipelines/ExamplePipeline.yaml -b DATA --register-dataset-types -i rawexpr,darkr -o subtractr
 ```
+- Optionally: rerun replacing (`--replace-run`) and removing (`--prune-replaced=purge`) the previous run:
+```
+pipetask run -p ../spherex_butler_poc/pipelines/ExamplePipeline.yaml -b DATA -o subtractr --replace-run --prune-replaced=purge
+```
 - Examine butler repository in `DATA` directory
+
+- Explore the contents of butler repository using command line tools:
+```
+> butler query-collections DATA
+> butler query-collections DATA --collection-type CHAINED
+> butler query-collections DATA --flatten-chains subtractr
+```
 
 ### Testing in a container (using weekly image):
 

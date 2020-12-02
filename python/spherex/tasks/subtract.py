@@ -29,12 +29,6 @@ class SubtractTaskConnections(pipeBase.PipelineTaskConnections,
 
     def __init__(self, *, config=None):
         super().__init__(config=config)
-        # if config.inputDatasetType is not None:
-        #     self.inputImage["name"] = config.inputDatasetType
-        # if config.subtractDatasetType is not None:
-        #     self.subtractImage["name"] = config.subtractDatasetType
-        # if config.outputDatasetType is not None:
-        #     self.outputImage["name"] = config.outputDatasetType
 
 
 class SubtractTaskConfig(pipeBase.PipelineTaskConfig,
@@ -42,20 +36,15 @@ class SubtractTaskConfig(pipeBase.PipelineTaskConfig,
     """Configuration parameters for SubtractDark
 
     """
-    inputDatasetType = pexConfig.Field(
-        dtype=str,
-        doc="Dataset type for input image",
-        default="rawexp",
+    inputHDUNum = pexConfig.Field(
+        dtype=int,
+        doc="HDU number for input image",
+        default=0,
     )
-    subtractDatasetType = pexConfig.Field(
-        dtype=str,
-        doc="Dataset type for image to be subtracted",
-        default="dark",
-    )
-    outputDatasetType = pexConfig.Field(
-        dtype=str,
-        doc="Dataset type for output image",
-        default="postDark",
+    subtractHDUNum = pexConfig.Field(
+        dtype=int,
+        doc="HDU number for image to be subtracted",
+        default=0,
     )
 
 
@@ -87,15 +76,16 @@ class SubtractTask(pipeBase.PipelineTask):
                 Image after subtraction.
         """
 
+        inputHDUIdx = self.config.inputHDUNum
+        subtractHDUIdx = self.config.subtractHDUNum
+
         # basic validation
-        if inputImage[0].data.shape != subtractImage[0].data.shape:
+        if inputImage[inputHDUIdx].data.shape != subtractImage[subtractHDUIdx].data.shape:
             raise RuntimeError("input and subtract image shapes do not match")
 
-        hdu = inputImage[0].copy()
-        hdu.data = inputImage[0].data - subtractImage[0].data
-        itype = self.config.inputDatasetType
-        otype = self.config.subtractDatasetType
-        hdu.header.add_comment(f"{itype} with subtracted {otype}")
+        hdu = inputImage[inputHDUIdx].copy()
+        hdu.data = inputImage[inputHDUIdx].data - subtractImage[subtractHDUIdx].data
+        hdu.header.add_comment("Dark current subtracted")
         outputImage = fits.HDUList()
         outputImage.append(hdu)
 
