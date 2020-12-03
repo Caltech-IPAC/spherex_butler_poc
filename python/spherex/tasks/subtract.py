@@ -9,19 +9,19 @@ class SubtractTaskConnections(pipeBase.PipelineTaskConnections,
                               dimensions={"instrument", "exposure", "detector"},
                               defaultTemplates={}):
     inputImage = cT.Input(
-        name="rawexp",
+        name="intype",  # default dataset type for input image
         doc="Input image.",
         storageClass="SPHERExImage",
         dimensions=["instrument", "exposure", "detector"],
     )
     subtractImage = cT.Input(
-        name="dark",
+        name="subtracttype",  # default dataset type for subtract image
         doc="Image that will be subtracted from the input image.",
         storageClass="SPHERExImage",
         dimensions=["instrument", "exposure", "detector"],
     )
     outputImage = cT.Output(
-        name='postDark',
+        name='postsubtracttype',  # default dataset type for output image
         doc="Output image after subtraction.",
         storageClass="SPHERExImage",
         dimensions=["instrument", "exposure", "detector"],

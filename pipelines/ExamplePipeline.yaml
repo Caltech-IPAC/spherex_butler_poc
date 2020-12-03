@@ -1,3 +1,8 @@
 description: ExamplePipeline
 tasks:
-  subtract: spherex.tasks.SubtractTask
+  subtract:
+    class: spherex.tasks.SubtractTask
+    config:
+      connections.inputImage: 'rawexp'
+      connections.subtractImage: 'dark'
+      connections.outputImage: 'postDark'
