@@ -1,0 +1,27 @@
+# This file gives the mapping between DatasetType and the
+# `lsst.daf.butler.Formatter` that handles it.
+# this file overrides the formatters.yaml in daf_butler repo
+write_recipes: !include writeRecipes.yaml
+default:
+  lsst.obs.base.formatters.fitsExposure.FitsExposureFormatter:
+    # default is the default recipe regardless but this demonstrates
+    # how to specify a default write parameter
+    recipe: default
+PropertyList:
+  formatter: lsst.daf.butler.formatters.yaml.YamlFormatter
+  parameters:
+    unsafe_dump: true
+PropertySet:
+  formatter: lsst.daf.butler.formatters.yaml.YamlFormatter
+  parameters:
+    unsafe_dump: true
+NumpyArray: lsst.daf.butler.formatters.pickle.PickleFormatter
+Plot: lsst.daf.butler.formatters.matplotlib.MatplotlibFormatter
+MetricValue:
+  formatter: lsst.daf.butler.formatters.yaml.YamlFormatter
+  parameters:
+    unsafe_dump: true
+BrighterFatterKernel: lsst.daf.butler.formatters.pickle.PickleFormatter
+StructuredDataDict: lsst.daf.butler.formatters.yaml.YamlFormatter
+AstropyTable: lsst.daf.butler.formatters.astropyTable.AstropyTableFormatter
+AstropyQTable: lsst.daf.butler.formatters.astropyTable.AstropyTableFormatter

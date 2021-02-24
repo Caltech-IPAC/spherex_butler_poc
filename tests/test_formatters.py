@@ -4,26 +4,60 @@ import shutil
 import tempfile
 import unittest
 
-from astropy.io import fits
-
 import lsst.utils.tests
 from lsst.daf.butler import Butler, ButlerURI, Config, DatasetRef, FileDataset, StorageClassFactory, Timespan
 from lsst.daf.butler.tests import DatasetTestHelper, makeTestRepo, addDatasetType
 
-from spherex.formatters.astropy_image import AstropyImageFormatter
+from astropy.io import fits
+from astropy.nddata import CCDData
+from spherex.core import SPHERExImage
+
+from spherex.formatters import AstropyImageFormatter, CCDDataFormatter, SPHERExImageFormatter
 
 TESTDIR = os.path.dirname(__file__)
-
-# File-based db stays open at the end of the test,
-# which would prevent running pytest with --open-files option
-
-INSTRUMENT_NAME = "MyCam"
-DATASET_TYPE_NAME = "myDatasetType"
 
 log = logging.getLogger(__name__)
 
 
-class AstropyFitsTests(DatasetTestHelper, lsst.utils.tests.TestCase):
+def read_astropy_image(fitsPath: str) -> fits.hdu.HDUList:
+    return fits.open(fitsPath)
+
+
+def read_ccddata(fitsPath: str) -> CCDData:
+    # unit must be specified
+    return CCDData.read(fitsPath, unit="adu")
+
+
+def read_spherex_image(fitsPath: str) -> SPHERExImage:
+    # unit must be specified
+    return SPHERExImage.read(fitsPath, unit="adu")
+
+
+FORMATTERS = [
+    {"formatter_cls": SPHERExImageFormatter,
+     "dataset_type": "spherex_image",
+     "storage_class": "SPHERExImage",
+     "inmem_cls": SPHERExImage,
+     "reader": read_spherex_image
+     },
+    {"formatter_cls": CCDDataFormatter,
+     "dataset_type": "ccddata_image",
+     "storage_class": "CCDData",
+     "inmem_cls": CCDData,
+     "reader": read_ccddata
+     },
+    {"formatter_cls": AstropyImageFormatter,
+     "dataset_type": "astropy_image",
+     "storage_class": "MyImage",
+     "inmem_cls": fits.hdu.HDUList,
+     "reader": read_astropy_image
+     }
+]
+
+INSTRUMENT_NAME = "MyCam"
+
+
+class FormattersTests(DatasetTestHelper, lsst.utils.tests.TestCase):
     root = None
     storageClassFactory = None
 
@@ -47,11 +81,10 @@ class AstropyFitsTests(DatasetTestHelper, lsst.utils.tests.TestCase):
         # butlerConfig["registry", "db"] = 'sqlite:///:memory:'
         cls.creatorButler = makeTestRepo(cls.root, data_ids, config=butlerConfig,
                                          dimensionConfig=configURI.join("dimensions.yaml"))
-        datasetTypeName, storageClassName = (DATASET_TYPE_NAME, "MyImage")
-        storageClass = cls.storageClassFactory.getStorageClass(storageClassName)
-        addDatasetType(cls.creatorButler, datasetTypeName, set(data_ids), storageClass)
-        # create test dataset type that does not have dimensions
-        # addDatasetType(cls.creatorButler, datasetTypeName, {}, storageClass)
+        for formatter in FORMATTERS:
+            datasetTypeName, storageClassName = (formatter["dataset_type"], formatter["storage_class"])
+            storageClass = cls.storageClassFactory.getStorageClass(storageClassName)
+            addDatasetType(cls.creatorButler, datasetTypeName, set(data_ids), storageClass)
 
     @classmethod
     def tearDownClass(cls):
@@ -66,22 +99,28 @@ class AstropyFitsTests(DatasetTestHelper, lsst.utils.tests.TestCase):
 
     def test_putget(self):
         fitsPath = os.path.join(TESTDIR, "data", "small.fits")
-        hdulist = fits.open(fitsPath)
-        l1 = hdulist.info(False)  # list of tuples representing HDU info
         dataid = {"exposure": 11, "detector": 0, "instrument": INSTRUMENT_NAME}
-        self.butler.put(hdulist, DATASET_TYPE_NAME, dataid)
+        for formatter in FORMATTERS:
+            # in-memory object, representing fits
+            inmemobj = formatter["reader"](fitsPath)
 
-        # Get the full thing
-        retrievedHDUList = self.butler.get(DATASET_TYPE_NAME, dataid)
-        l2 = retrievedHDUList.info(False)  # list of tuples representing HDU info
+            # save in-memory object into butler dataset
+            datasetTypeName = formatter["dataset_type"]
+            self.butler.put(inmemobj, datasetTypeName, dataid)
 
-        self.assertListEqual(l1, l2)
+            # get butler dataset
+            retrievedobj = self.butler.get(datasetTypeName, dataid)
+            self.assertTrue(isinstance(retrievedobj, formatter["inmem_cls"]))
+            self.assertTrue(retrievedobj.__class__.__name__, inmemobj.__class__.__name__)
 
     def test_ingest(self):
 
         fitsPath = os.path.join(TESTDIR, "data", "small.fits")
 
-        datasetType = self.butler.registry.getDatasetType(DATASET_TYPE_NAME)
+        formatter = FORMATTERS[0]
+        datasetTypeName, formatterCls = (formatter["dataset_type"], formatter["formatter_cls"])
+
+        datasetType = self.butler.registry.getDatasetType(datasetTypeName)
         datasets = []
         for exposure in range(3, 5):
             for detector in range(6):
@@ -92,7 +131,7 @@ class AstropyFitsTests(DatasetTestHelper, lsst.utils.tests.TestCase):
                 ref = DatasetRef(datasetType, dataId={"instrument": INSTRUMENT_NAME,
                                                       "detector": detector,
                                                       "exposure": exposure * 11})
-                datasets.append(FileDataset(refs=ref, path=fitsPath, formatter=AstropyImageFormatter))
+                datasets.append(FileDataset(refs=ref, path=fitsPath, formatter=formatterCls))
 
         # register new collection
         # run = "rawIngestedRun"
@@ -115,12 +154,12 @@ class AstropyFitsTests(DatasetTestHelper, lsst.utils.tests.TestCase):
             self.butler.ingest(*datasets, transfer="symlink", run=run)
 
         # verify that 12 files were ingested (2 exposures for each detector)
-        refsSet = set(self.butler.registry.queryDatasets(DATASET_TYPE_NAME, collections=[run]))
+        refsSet = set(self.butler.registry.queryDatasets(datasetTypeName, collections=[run]))
         self.assertEqual(len(refsSet), 12, f"Collection {run} should have 12 elements after ingest")
 
         # verify that data id is present
         dataid = {"exposure": 44, "detector": 5, "instrument": INSTRUMENT_NAME}
-        refsList = list(self.butler.registry.queryDatasets(DATASET_TYPE_NAME,
+        refsList = list(self.butler.registry.queryDatasets(datasetTypeName,
                                                            collections=[run],
                                                            dataId=dataid))
         self.assertEqual(len(refsList), 1, f"Collection {run} should have 1 element with {dataid}")

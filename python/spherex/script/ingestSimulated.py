@@ -98,7 +98,7 @@ def ingestSimulated(repo, locations, regex, output_run, transfer="auto", ingest_
         m = pattern.search(file)
         if m is None:
             n_failed += 1
-            logging.error(f"{file} does not match sumulator file pattern")
+            logging.error(f"{file} does not match simulator file pattern")
             continue
         else:
             g = m.groups()

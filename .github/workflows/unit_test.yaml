@@ -30,13 +30,17 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v2
         with:
-          python-version: 3.7
+          python-version: 3.8
 
       - name: Install sqlite
         run: sudo apt-get install sqlite libyaml-dev
 
+      - name: Override datastores files
+        # physical_filter+detector+exposure in the original fileDatastore creates problem
+        run: cp ${{ github.workspace }}/spherex_butler_poc/python/spherex/configs/datastores/*  ${{ github.workspace }}/daf_butler/python/lsst/daf/butler/configs/datastores/
+
       - name: Install dax_butler dependencies
-        run: pip install -r https://raw.githubusercontent.com/lsst/daf_butler/master/requirements.txt
+        run: pip install -r ${{ github.workspace }}/daf_butler/requirements.txt
 
       # pytest-xdist allows to parallelize testing on multiple CPUs
       # pytest-openfiles allows to detect open I/O resources at the end of unit tests
