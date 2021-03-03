@@ -1,7 +1,14 @@
-from astropy.io import fits, registry
-from astropy.nddata import CCDData, fits_ccddata_reader, FlagCollection
+# SPHEREx Image will be stored in a FITS file with
+#    header-only primary hdu (to allow compressed images)
+# and the following extensions:
+#    image extension
+#    flags extension
+#    variance extension
 
 __all__ = ['SPHERExImage', 'spherex_image_reader', 'spherex_image_writer']
+
+from astropy.io import fits, registry
+from astropy.nddata import CCDData, fits_ccddata_reader, FlagCollection
 
 FLAG_DEFS = {
     'NONFUNC': 2,
@@ -28,13 +35,14 @@ class SPHERExImage(CCDData):
         make a copy of the ``data`` before passing it in if that's the desired
         behavior.
 
-    flags : `numpy.ndarray` or `~astropy.nddata.FlagCollection` or None, \
-            optional
+    flags : `numpy.ndarray` or None, optional
         Flags giving information about each pixel. These can be specified
-        either as a Numpy array of any type with a shape matching that of the
-        data, or as a `~astropy.nddata.FlagCollection` instance which has a
-        shape matching that of the data.
+        as a Numpy array of any type with a shape matching that of the
+        data.
         Default is ``None``.
+
+    flag_defs " dict-like object or None, optional
+        Flag definitions, which map flag name to a bit in the flags array.
 
     wcs : `~astropy.wcs.WCS` or None, optional
         WCS-object containing the world coordinate system for the data.
@@ -83,7 +91,7 @@ class SPHERExImage(CCDData):
         self._flag_defs = value
 
 
-def get_flag_defs(header: fits.Header):
+def _get_flag_defs(header: fits.Header):
     """Get flag definition dictionary from the the header
 
     Parameters
@@ -111,7 +119,7 @@ def get_flag_defs(header: fits.Header):
         return flag_defs
 
 
-def add_flag_defs(spherex_image: SPHERExImage, header: fits.Header) -> None:
+def _add_flag_defs(spherex_image: SPHERExImage, header: fits.Header) -> None:
     """Add image flag definitions to the header
 
     Parameters
@@ -133,11 +141,13 @@ def add_flag_defs(spherex_image: SPHERExImage, header: fits.Header) -> None:
         header[f'{prefix}{key.upper()}'] = val
 
 
-def spherex_image_reader(filename, hdu=0, unit=None, hdu_uncertainty='VARIANCE',
-                         hdu_mask='MASK', hdu_flags='FLAGS',
+def spherex_image_reader(filename, hdu=0, unit=None, hdu_uncertainty=3,
+                         hdu_mask='MASK', hdu_flags=2,
                          key_uncertainty_type='UTYPE', **kwd) -> SPHERExImage:
     """
     Generate a SPHERExImage object from a FITS file.
+    When flags and variance are present, they are expected to be in
+    the second and the third extensions.
 
     Parameters
     ----------
@@ -159,7 +169,7 @@ def spherex_image_reader(filename, hdu=0, unit=None, hdu_uncertainty='VARIANCE',
     hdu_uncertainty : str or int or None, optional
         FITS extension from which the uncertainty should be initialized. If the
         extension does not exist the uncertainty of the SPHERExImage is ``None``.
-        Default is ``'VARIANCE'``.
+        Default is ``3``.
 
     hdu_mask : str or int or None, optional
         FITS extension from which the mask should be initialized. If the
@@ -169,12 +179,12 @@ def spherex_image_reader(filename, hdu=0, unit=None, hdu_uncertainty='VARIANCE',
     hdu_flags : str or int or None, optional
         FITS extension from which the flags should be initialized. If the
         extension does not exist the flags of the SPHERExImage is ``None``.
-        Default is ``FLAGS``.
+        Default is ``2``.
 
     key_uncertainty_type : str, optional
         The header key name where the class name of the uncertainty  is stored
         in the hdu of the uncertainty (if any).
-        Default is ``UTYPE``.
+        Default is ``'UTYPE'``.
 
     kwd :
         Any additional keyword parameters are passed through to the FITS reader
@@ -203,7 +213,7 @@ def spherex_image_reader(filename, hdu=0, unit=None, hdu_uncertainty='VARIANCE',
             flags_hdu = hdus[hdu_flags]
             flags = flags_hdu.data
             hdr = hdus[hdu_flags].header
-            flag_defs = get_flag_defs(hdr)
+            flag_defs = _get_flag_defs(hdr)
 
         spherex_image = SPHERExImage(ccddata.data, meta=ccddata.header,
                                      unit=ccddata.unit, mask=ccddata.mask,
@@ -239,7 +249,7 @@ def spherex_image_writer(spherex_image: SPHERExImage, fileobj, hdu_mask='MASK', 
     key_uncertainty_type : str, optional
         The header key name for the class name of the uncertainty (if any)
         that is used to store the uncertainty type in the uncertainty hdu.
-        Default is ``UTYPE``.
+        Default is ``'UTYPE'``.
 
     kwd : dict
 
@@ -249,16 +259,22 @@ def spherex_image_writer(spherex_image: SPHERExImage, fileobj, hdu_mask='MASK', 
     """
 
     # to_hdu does not support flags at the moment
+    # to_hdu puts image data into PrimaryHDU
     hdulist = spherex_image.to_hdu(hdu_mask=hdu_mask, hdu_uncertainty=hdu_uncertainty,
                                    wcs_relax=wcs_relax, key_uncertainty_type=key_uncertainty_type)
 
-    # add flags hdu
+    # add primary hdu - critical to support compressed images later
+    # minimum header with EXTEND will be provided if header is None
+    primary_hdu = fits.PrimaryHDU(data=None, header=None)
+    hdulist.insert(0, primary_hdu)
+
+    # add flags hdu - 2nd extension after the image data
     if hdu_flags and spherex_image.flags is not None:
         hdr_flags = fits.Header()
-        add_flag_defs(spherex_image, hdr_flags)
+        _add_flag_defs(spherex_image, hdr_flags)
 
         hdu = fits.ImageHDU(spherex_image.flags.data, hdr_flags, name=hdu_flags)
-        hdulist.append(hdu)
+        hdulist.insert(2, hdu)
 
     hdulist.writeto(fileobj, **kwd)
 

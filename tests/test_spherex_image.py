@@ -46,10 +46,11 @@ class TestSPHERExImage(unittest.TestCase):
                              hdu_flags='FLAGS', wcs_relax=True, key_uncertainty_type='UTYPE')
 
         with fits.open(out_path) as hdulist:
-            # Primary extension contains data
+            # Primary extension - header only
+            # first extension - data
             # second extension - variance
-            # third extension - mask
-            self.assertEqual(len(hdulist), 3)
+            # third extension - flags
+            self.assertEqual(len(hdulist), 4)
 
 
 if __name__ == '__main__':
