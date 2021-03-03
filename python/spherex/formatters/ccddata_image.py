@@ -1,6 +1,8 @@
-__all__ = ["AstropyImageFormatter"]
+__all__ = ["CCDDataFormatter"]
 
-from astropy.io import fits
+from astropy import units as u
+from astropy.nddata import CCDData, fits_ccddata_reader, fits_ccddata_writer
+
 from typing import (
     Any,
     Optional,
@@ -10,7 +12,7 @@ from typing import (
 from lsst.daf.butler.formatters.file import FileFormatter
 
 
-class AstropyImageFormatter(FileFormatter):
+class CCDDataFormatter(FileFormatter):
     """Interface for reading and writing astropy
     image objects to and from FITS files.
     """
@@ -21,7 +23,7 @@ class AstropyImageFormatter(FileFormatter):
     """This formatter does not support any parameters (`frozenset`)"""
 
     def _readFile(self, path: str, pytype: Optional[Type[Any]] = None) -> Any:
-        """Read a file from the path in FITS format.
+        """Read a file from the path in multi-extension FITS format into CCDData.
 
         Parameters
         ----------
@@ -32,13 +34,13 @@ class AstropyImageFormatter(FileFormatter):
 
         Returns
         -------
-        data : `object`
-            Either data as Python object read from JSON file, or None
+        data : `~astropy.nddata.CCDData`
+            Either data as Python object or None
             if the file could not be opened.
         """
         # todo check pytype?
         try:
-            data = fits.open(path)
+            data = fits_ccddata_reader(path, unit=(u.electron/u.s))
         except FileNotFoundError:
             data = None
 
@@ -57,6 +59,6 @@ class AstropyImageFormatter(FileFormatter):
         Exception
             The file could not be written.
         """
-        if not isinstance(inMemoryDataset, fits.HDUList):
+        if not isinstance(inMemoryDataset, CCDData):
             raise NotImplementedError("Unable to write this representation of FITS into a file.")
-        inMemoryDataset.writeto(self.fileDescriptor.location.path)
+        fits_ccddata_writer(inMemoryDataset, self.fileDescriptor.location.path)

@@ -2,16 +2,19 @@ datastore:
   # Want to check disassembly so can't use InMemory
   cls: lsst.daf.butler.datastores.fileDatastore.FileDatastore
   formatters:
-    MyImage: spherex.formatters.astropy_image.AstropyImageFormatter
-    SPHERExImage: spherex.formatters.astropy_image.AstropyImageFormatter
+    MyImage: spherex.formatters.AstropyImageFormatter
+    CCDData: spherex.formatters.CCDDataFormatter
+    SPHERExImage: spherex.formatters.SPHERExImageFormatter
   templates:
     default: "{run:/}/{datasetType}.{component:?}/{label:?}/{detector:?}/{exposure.group_name:?}/{datasetType}_{component:?}_{label:?}_{calibration_label:?}_{exposure:?}_{detector:?}_{instrument:?}_{skypix:?}_{run}"
 
 storageClasses:
   MyImage:
     pytype: astropy.io.fits.HDUList
+  CCDData:
+    pytype: astropy.nddata.CCDData
   SPHERExImage:
-    pytype: astropy.io.fits.HDUList
+    pytype: spherex.core.SPHERExImage
 
 registry:
   # File-based:

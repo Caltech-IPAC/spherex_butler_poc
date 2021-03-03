@@ -1,16 +1,18 @@
-__all__ = ["AstropyImageFormatter"]
+__all__ = ["SPHERExImageFormatter"]
 
-from astropy.io import fits
 from typing import (
     Any,
     Optional,
     Type,
 )
 
+from astropy import units as u
 from lsst.daf.butler.formatters.file import FileFormatter
 
+from ..core import SPHERExImage, spherex_image_reader, spherex_image_writer
 
-class AstropyImageFormatter(FileFormatter):
+
+class SPHERExImageFormatter(FileFormatter):
     """Interface for reading and writing astropy
     image objects to and from FITS files.
     """
@@ -38,7 +40,7 @@ class AstropyImageFormatter(FileFormatter):
         """
         # todo check pytype?
         try:
-            data = fits.open(path)
+            data = spherex_image_reader(path, unit=(u.electron / u.s))
         except FileNotFoundError:
             data = None
 
@@ -57,6 +59,6 @@ class AstropyImageFormatter(FileFormatter):
         Exception
             The file could not be written.
         """
-        if not isinstance(inMemoryDataset, fits.HDUList):
+        if not isinstance(inMemoryDataset, SPHERExImage):
             raise NotImplementedError("Unable to write this representation of FITS into a file.")
-        inMemoryDataset.writeto(self.fileDescriptor.location.path)
+        spherex_image_writer(inMemoryDataset, self.fileDescriptor.location.path)
